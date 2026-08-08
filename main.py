@@ -5,6 +5,10 @@ import sqlite3
 import random
 import os
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load the hidden .env file so the API key stays safe
+load_dotenv()
 
 # --- APP SETUP ---
 app = FastAPI()
@@ -18,8 +22,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini AI (Make sure your environment variable is set on Render!)
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE"))
+# Configure Gemini AI using the hidden environment variable
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- DATABASE SETUP ---
