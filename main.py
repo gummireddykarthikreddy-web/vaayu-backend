@@ -1,28 +1,15 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-import uuid
+from pydantic import BaseModel
 import sqlite3
-from datetime import datetime
+import random
 import os
-
-# Import the Google AI library
 import google.generativeai as genai
 
-# ==========================================
-# 🔒 SECURE WAY: Pull the key from Render's environment!
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-# ==========================================
-
-# Only configure if the key exists (prevents crashes if missing)
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-
-# Use the latest, fastest model
-ai_model = genai.GenerativeModel('gemini-3.5-flash') 
-
+# --- APP SETUP ---
 app = FastAPI()
 
+# Allow your frontend to talk to your backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,11 +18,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Configure Gemini AI (Make sure your environment variable is set on Render!)
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE"))
+model = genai.GenerativeModel('gemini-1.5-flash')
+
 # --- DATABASE SETUP ---
 def init_db():
-    conn = sqlite3.connect("vaayu.db")
+    conn = sqlite3.connect('vaayu.db')
     cursor = conn.cursor()
-    cursor.execute("""
+    
+    # 1. Patients Table
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS patients (
             patient_id TEXT PRIMARY KEY,
             full_name TEXT,
@@ -44,23 +37,45 @@ def init_db():
             contact_number TEXT,
             emergency_contact TEXT
         )
-    """)
-    cursor.execute("""
+    ''')
+    
+    # 2. Medical Records Table (for the Vault)
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS medical_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             patient_id TEXT,
             record_type TEXT,
-            record_details TEXT,
-            date_added TEXT
+            description TEXT,
+            date TEXT,
+            FOREIGN KEY(patient_id) REFERENCES patients(patient_id)
         )
-    """)
+    ''')
+
+    # 3. Daily Lab Results Table (PHASE 1)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lab_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            patient_id TEXT,
+            report_date TEXT,
+            hemoglobin REAL,
+            fasting_blood_sugar REAL,
+            lipid_profile_ldl REAL,
+            lft_sgpt REAL,
+            kft_creatinine REAL,
+            cbc_wbc REAL,
+            FOREIGN KEY(patient_id) REFERENCES patients(patient_id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
+# Run database setup on startup
 init_db()
 
-# --- MODELS ---
-class PatientProfile(BaseModel):
+
+# --- DATA MODELS ---
+class PatientRegister(BaseModel):
     full_name: str
     date_of_birth: str
     blood_group: str
@@ -68,156 +83,187 @@ class PatientProfile(BaseModel):
     emergency_contact: str
 
 class MedicalRecord(BaseModel):
+    patient_id: str
     record_type: str
-    record_details: str
+    description: str
+    date: str
 
-# --- ENDPOINTS ---
+class DailyLabReport(BaseModel):
+    patient_id: str
+    report_date: str
+    hemoglobin: float
+    fasting_blood_sugar: float
+    lipid_profile_ldl: float
+    lft_sgpt: float
+    kft_creatinine: float
+    cbc_wbc: float
+
+
+# --- API ENDPOINTS ---
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Vaayu Backend System!"}
+
+# 1. Registration Endpoint
 @app.post("/api/register")
-def register_patient(profile: PatientProfile):
-    unique_id = f"VAAYU-{uuid.uuid4().hex[:8].upper()}"
-    conn = sqlite3.connect("vaayu.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO patients (patient_id, full_name, date_of_birth, blood_group, contact_number, emergency_contact)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (unique_id, profile.full_name, profile.date_of_birth, profile.blood_group, profile.contact_number, profile.emergency_contact))
-    conn.commit()
-    conn.close()
-    return {"status": "success", "patient_id": unique_id}
-
-@app.post("/api/patient/{patient_id}/records")
-def add_medical_record(patient_id: str, record: MedicalRecord):
-    conn = sqlite3.connect("vaayu.db")
-    cursor = conn.cursor()
-    date_added = datetime.today().strftime("%b %d, %Y") 
-    cursor.execute("""
-        INSERT INTO medical_records (patient_id, record_type, record_details, date_added)
-        VALUES (?, ?, ?, ?)
-    """, (patient_id.upper(), record.record_type, record.record_details, date_added))
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Record added."}
-
-@app.delete("/api/records/{record_id}")
-def delete_medical_record(record_id: int):
-    conn = sqlite3.connect("vaayu.db")
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM medical_records WHERE id = ?", (record_id,))
-    conn.commit()
-    conn.close()
-    return {"status": "success", "message": "Record deleted."}
-
-@app.get("/api/patient/{patient_id}")
-def get_patient_vault(patient_id: str):
-    conn = sqlite3.connect("vaayu.db")
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT full_name, date_of_birth, blood_group FROM patients WHERE patient_id = ?", (patient_id.upper(),))
-    row = cursor.fetchone()
-    
-    if not row:
+async def register_patient(patient: PatientRegister):
+    try:
+        conn = sqlite3.connect('vaayu.db')
+        cursor = conn.cursor()
+        
+        # Generate a unique ID (e.g., VAAYU-48291)
+        patient_id = f"VAAYU-{random.randint(10000, 99999)}"
+        
+        cursor.execute('''
+            INSERT INTO patients (patient_id, full_name, date_of_birth, blood_group, contact_number, emergency_contact)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (patient_id, patient.full_name, patient.date_of_birth, patient.blood_group, patient.contact_number, patient.emergency_contact))
+        
+        conn.commit()
         conn.close()
-        return {"status": "error", "message": "Patient not found."}
-
-    cursor.execute("SELECT id, record_type, record_details, date_added FROM medical_records WHERE patient_id = ?", (patient_id.upper(),))
-    records = cursor.fetchall()
-    conn.close()
-
-    history = {
-        "chronic_conditions": [],
-        "past_surgeries": [],
-        "active_prescriptions": [],
-        "allergies": []
-    }
-
-    for r_id, r_type, details, date_added in records:
-        if r_type == "allergy":
-            history["allergies"].append({"id": r_id, "detail": details, "date": date_added})
-        elif r_type == "prescription":
-            history["active_prescriptions"].append({"id": r_id, "detail": details, "date": date_added})
-        elif r_type == "surgery":
-            history["past_surgeries"].append({"id": r_id, "procedure": details, "date": date_added, "notes": "Added via Portal"})
-
-    try:
-        dob = datetime.strptime(row[1], "%Y-%m-%d")
-        today = datetime.today()
-        age = str(today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day)))
-    except:
-        age = "N/A"
-
-    return {
-        "status": "success",
-        "patient_id": patient_id.upper(),
-        "profile": {
-            "name": row[0],
-            "dob": row[1],
-            "blood_group": row[2],
-            "age": age
-        },
-        "history": history
-    }
-
-# --- AI AGENT ENDPOINT ---
-@app.get("/api/patient/{patient_id}/summary")
-def generate_ai_summary(patient_id: str):
-    # Safety check: Is the API key loaded from the environment?
-    if not GEMINI_API_KEY:
-        return {"status": "error", "message": "API key is missing in the cloud environment."}
-
-    # 1. Fetch the patient data using our existing function
-    patient_data = get_patient_vault(patient_id)
-    
-    if patient_data.get("status") == "error":
-        return {"status": "error", "message": "Cannot generate summary for unknown patient."}
-
-    # 2. Build the Prompt (giving the AI its instructions)
-    prompt = f"""
-    You are a highly advanced AI clinical assistant for the Vaayu medical portal. 
-    Analyze the following patient data and medical history: 
-    {patient_data}
-    
-    Provide a concise, professional 3-bullet point health summary for the doctor. 
-    Explicitly flag any potential risks if they have allergies, or simply state their current status.
-    Do not use markdown bolding in your response, keep it plain text.
-    """
-
-    # 3. Ask Gemini to generate the response
-    try:
-        response = ai_model.generate_content(prompt)
-        return {"status": "success", "ai_summary": response.text}
+        
+        return {"status": "success", "patient_id": patient_id}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- ANALYTICS DASHBOARD ENDPOINT ---
+# 2. Analytics Dashboard Endpoint
 @app.get("/api/statistics")
-def get_clinic_statistics():
-    conn = sqlite3.connect("vaayu.db")
-    cursor = conn.cursor()
-    
-    # 1. Get total number of patients
-    cursor.execute("SELECT COUNT(*) FROM patients")
-    total_patients = cursor.fetchone()[0]
-    
-    # 2. Get total number of medical records
-    cursor.execute("SELECT COUNT(*) FROM medical_records")
-    total_records = cursor.fetchone()[0]
-    
-    # 3. Group patients by blood type
-    cursor.execute("SELECT blood_group, COUNT(*) FROM patients GROUP BY blood_group")
-    blood_group_data = cursor.fetchall()
-    
-    conn.close()
-    
-    # Format the data cleanly for the frontend
-    blood_group_stats = {}
-    for bg, count in blood_group_data:
-        blood_group_stats[bg] = count
-
-    return {
-        "status": "success",
-        "data": {
+async def get_statistics():
+    try:
+        conn = sqlite3.connect('vaayu.db')
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT COUNT(*) FROM patients")
+        total_patients = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM medical_records")
+        total_records = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT blood_group, COUNT(*) FROM patients GROUP BY blood_group")
+        blood_group_counts = [{"bloodGroup": row[0], "count": row[1]} for row in cursor.fetchall()]
+        
+        conn.close()
+        return {
+            "status": "success",
             "total_patients": total_patients,
             "total_records": total_records,
-            "blood_group_distribution": blood_group_stats
+            "blood_group_distribution": blood_group_counts
         }
-    }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 3. Patient Vault & AI Summarizer
+@app.get("/api/patient/{patient_id}")
+async def get_patient_vault(patient_id: str):
+    try:
+        conn = sqlite3.connect('vaayu.db')
+        cursor = conn.cursor()
+        
+        # Get patient details
+        cursor.execute("SELECT * FROM patients WHERE patient_id = ?", (patient_id,))
+        patient = cursor.fetchone()
+        
+        if not patient:
+            return {"status": "error", "message": "Patient not found"}
+            
+        # Get medical records
+        cursor.execute("SELECT record_type, description, date FROM medical_records WHERE patient_id = ?", (patient_id,))
+        records = [{"type": row[0], "description": row[1], "date": row[2]} for row in cursor.fetchall()]
+        
+        # Use AI to generate a clinical summary
+        prompt = f"Act as a chief medical officer. Summarize this patient's history in 2 short, professional sentences. Name: {patient[1]}, Blood Group: {patient[3]}. Records: {records}"
+        ai_response = model.generate_content(prompt)
+        ai_summary = ai_response.text
+        
+        conn.close()
+        
+        return {
+            "status": "success",
+            "patient_info": {
+                "id": patient[0],
+                "name": patient[1],
+                "dob": patient[2],
+                "blood_group": patient[3]
+            },
+            "records": records,
+            "ai_summary": ai_summary
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 4. Add Medical Record to Vault
+@app.post("/api/records/add")
+async def add_medical_record(record: MedicalRecord):
+    try:
+        conn = sqlite3.connect('vaayu.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO medical_records (patient_id, record_type, description, date)
+            VALUES (?, ?, ?, ?)
+        ''', (record.patient_id, record.record_type, record.description, record.date))
+        
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Record added securely."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# --- PHASE 1: NEW LAB & VITALS ENDPOINTS ---
+
+# 5. Save Daily Lab Report
+@app.post("/api/labs/add")
+async def add_lab_report(report: DailyLabReport):
+    try:
+        conn = sqlite3.connect('vaayu.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO lab_results 
+            (patient_id, report_date, hemoglobin, fasting_blood_sugar, lipid_profile_ldl, lft_sgpt, kft_creatinine, cbc_wbc)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            report.patient_id, report.report_date, report.hemoglobin, 
+            report.fasting_blood_sugar, report.lipid_profile_ldl, 
+            report.lft_sgpt, report.kft_creatinine, report.cbc_wbc
+        ))
+        
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Daily lab report saved to Vaayu."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# 6. Get Lab History for Charts
+@app.get("/api/labs/{patient_id}")
+async def get_patient_labs(patient_id: str):
+    try:
+        conn = sqlite3.connect('vaayu.db')
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT report_date, hemoglobin, fasting_blood_sugar, lipid_profile_ldl, lft_sgpt, kft_creatinine, cbc_wbc 
+            FROM lab_results 
+            WHERE patient_id = ?
+            ORDER BY report_date ASC
+        ''', (patient_id,))
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        history = []
+        for row in rows:
+            history.append({
+                "date": row[0],
+                "hemoglobin": row[1],
+                "fasting_blood_sugar": row[2],
+                "lipid_profile_ldl": row[3],
+                "lft_sgpt": row[4],
+                "kft_creatinine": row[5],
+                "cbc_wbc": row[6]
+            })
+            
+        return {"status": "success", "data": history}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
