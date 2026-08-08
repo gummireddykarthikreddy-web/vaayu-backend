@@ -187,3 +187,37 @@ def generate_ai_summary(patient_id: str):
         return {"status": "success", "ai_summary": response.text}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# --- ANALYTICS DASHBOARD ENDPOINT ---
+@app.get("/api/statistics")
+def get_clinic_statistics():
+    conn = sqlite3.connect("vaayu.db")
+    cursor = conn.cursor()
+    
+    # 1. Get total number of patients
+    cursor.execute("SELECT COUNT(*) FROM patients")
+    total_patients = cursor.fetchone()[0]
+    
+    # 2. Get total number of medical records
+    cursor.execute("SELECT COUNT(*) FROM medical_records")
+    total_records = cursor.fetchone()[0]
+    
+    # 3. Group patients by blood type
+    cursor.execute("SELECT blood_group, COUNT(*) FROM patients GROUP BY blood_group")
+    blood_group_data = cursor.fetchall()
+    
+    conn.close()
+    
+    # Format the data cleanly for the frontend
+    blood_group_stats = {}
+    for bg, count in blood_group_data:
+        blood_group_stats[bg] = count
+
+    return {
+        "status": "success",
+        "data": {
+            "total_patients": total_patients,
+            "total_records": total_records,
+            "blood_group_distribution": blood_group_stats
+        }
+    }
