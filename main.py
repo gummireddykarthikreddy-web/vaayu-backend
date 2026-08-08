@@ -5,6 +5,18 @@ import uuid
 import sqlite3
 from datetime import datetime
 
+# NEW: Import the Google AI library
+import google.generativeai as genai
+
+# ==========================================
+# 🛑 PASTE YOUR API KEY HERE:
+GEMINI_API_KEY = "AQ.Ab8RN6K9roNC0EeC7-xb0Gc5EuruCZGWc5xEqmie7S90kgTbvA"
+# ==========================================
+
+genai.configure(api_key=GEMINI_API_KEY)
+# We use gemini-1.5-flash because it is lightning fast for agent tasks
+ai_model = genai.GenerativeModel('gemini-3.5-flash')
+
 app = FastAPI()
 
 app.add_middleware(
@@ -73,7 +85,6 @@ def register_patient(profile: PatientProfile):
 def add_medical_record(patient_id: str, record: MedicalRecord):
     conn = sqlite3.connect("vaayu.db")
     cursor = conn.cursor()
-    # Grabs the exact date it was added
     date_added = datetime.today().strftime("%b %d, %Y") 
     cursor.execute("""
         INSERT INTO medical_records (patient_id, record_type, record_details, date_added)
@@ -115,7 +126,6 @@ def get_patient_vault(patient_id: str):
         "allergies": []
     }
 
-    # UPGRADE: Added "date" to all record types!
     for r_id, r_type, details, date_added in records:
         if r_type == "allergy":
             history["allergies"].append({"id": r_id, "detail": details, "date": date_added})
@@ -142,3 +152,30 @@ def get_patient_vault(patient_id: str):
         },
         "history": history
     }
+
+# --- NEW: AI AGENT ENDPOINT ---
+@app.get("/api/patient/{patient_id}/summary")
+def generate_ai_summary(patient_id: str):
+    # 1. Fetch the patient data using our existing function
+    patient_data = get_patient_vault(patient_id)
+    
+    if patient_data.get("status") == "error":
+        return {"status": "error", "message": "Cannot generate summary for unknown patient."}
+
+    # 2. Build the Prompt (giving the AI its instructions)
+    prompt = f"""
+    You are a highly advanced AI clinical assistant for the Vaayu medical portal. 
+    Analyze the following patient data and medical history: 
+    {patient_data}
+    
+    Provide a concise, professional 3-bullet point health summary for the doctor. 
+    Explicitly flag any potential risks if they have allergies, or simply state their current status.
+    Do not use markdown bolding in your response, keep it plain text.
+    """
+
+    # 3. Ask Gemini to generate the response
+    try:
+        response = ai_model.generate_content(prompt)
+        return {"status": "success", "ai_summary": response.text}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
