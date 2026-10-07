@@ -1,47 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { ScrollView, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import os
 
-const CrimsonGlassSlab = require('../../assets/images/CrimsonGlassSlab.png');
-const ObsidianGoldSlab = require('../../assets/images/ObsidianGoldSlab.png');
-const BurningBlueFireOrb = require('../../assets/images/BurningBlueFireOrb.png');
-const GlassCardSlab = require('../../assets/images/GlassCardSlab.png');
+with open('src/app/explore.tsx', 'r', encoding='utf-8') as f:
+    content = f.read()
 
-const getUri = (source: any): string => {
-  if (!source) return '';
-  if (typeof source === 'string') return source;
-  if (typeof source === 'object') return source.uri || source.default || '';
-  return String(source);
-};
+start_marker = "return ("
+end_marker = ");"
 
-export default function DoctorVaultScreen() {
-  const router = useRouter();
-  const [patientData, setPatientData] = useState<any>(null);
+start_idx = content.find(start_marker)
+end_idx = content.rfind(end_marker) + len(end_marker)
 
-  useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/patient/VAAYU-77572')
-      .then(r => r.json())
-      .then(data => setPatientData(data))
-      .catch(e => console.error(e));
-  }, []);
-
-  return (
+new_return = """return (
     <ScrollView style={{ flex: 1, backgroundColor: '#020617' }}>
       <style>{`
-        @keyframes fireSpinOuter {
-          0% { transform: scale(1.25) rotate(0deg); filter: brightness(1.35) contrast(1.45) drop-shadow(0 0 25px #00E5FF); }
-          50% { transform: scale(1.38) rotate(180deg); filter: brightness(1.65) contrast(1.6) drop-shadow(0 0 45px #00E5FF); }
-          100% { transform: scale(1.25) rotate(360deg); filter: brightness(1.35) contrast(1.45) drop-shadow(0 0 25px #00E5FF); }
-        }
-        @keyframes firePulseRound {
-          0%, 100% { transform: scale(1.2); opacity: 0.8; filter: brightness(1.5) drop-shadow(0 0 20px #38BDF8); }
-          50% { transform: scale(1.35); opacity: 1; filter: brightness(1.8) drop-shadow(0 0 40px #00E5FF); }
-        }
-        .orb-mask {
-          mix-blend-mode: screen;
-          -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 38%, rgba(0,0,0,0.6) 54%, rgba(0,0,0,0) 68%);
-          mask-image: radial-gradient(circle, rgba(0,0,0,1) 38%, rgba(0,0,0,0.6) 54%, rgba(0,0,0,0) 68%);
-        }
         .glass-tablet {
           transform: perspective(1000px) rotateY(15deg) rotateX(5deg);
           box-shadow: -20px 20px 40px rgba(225,29,72,0.2);
@@ -133,34 +103,18 @@ export default function DoctorVaultScreen() {
 
         {/* QUADRANT 3: 3D Blue Flame Recovery Orb */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ position: 'relative', width: 300, height: 300, minWidth: 300, minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 'auto', alignSelf: 'center' }}>
-            {/* Layer 1: Spinning Perfect Circle */}
-            <img 
-              src={getUri(BurningBlueFireOrb)} 
-              className="orb-mask" 
-              style={{ position: 'absolute', width: 260, height: 260, objectFit: 'contain', animation: 'fireSpinOuter 10s linear infinite', pointerEvents: 'none' }} 
-              alt="Spinning Flame"
-            />
-
-            {/* Layer 2: Pulsing Perfect Circle (Replaced the elongating crown) */}
-            <img 
-              src={getUri(BurningBlueFireOrb)} 
-              className="orb-mask" 
-              style={{ position: 'absolute', width: 260, height: 260, objectFit: 'contain', animation: 'firePulseRound 4s ease-in-out infinite', pointerEvents: 'none' }} 
-              alt="Pulsing Flame"
-            />
-
-            {/* Floating Text (No Background) */}
-            <div style={{ zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 48, fontWeight: '900', color: '#FFF', textShadow: '0 4px 15px rgba(0,0,0,0.9), 0 0 20px rgba(0, 229, 255, 0.6)' }}>{patientData?.recovery_insights?.recovery_rate || 83.5}%</span>
-              <span style={{ fontSize: 14, fontWeight: 'bold', color: '#38BDF8', textTransform: 'uppercase', letterSpacing: 2, marginTop: 4, textShadow: '0 2px 10px rgba(0,0,0,0.9)' }}>RECOVERY INDEX</span>
+          <div style={{ position: 'relative', width: 300, height: 300, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'radial-gradient(circle, rgba(0,229,255,0.1) 0%, rgba(0,0,0,0) 70%)', boxShadow: '0 0 30px rgba(0,229,255,0.1)' }}>
+            <img src={getUri(BurningBlueFireOrb)} style={{ position: 'absolute', width: '120%', height: '120%', objectFit: 'contain', pointerEvents: 'none' }} />
+            
+            <div style={{ zIndex: 10, textAlign: 'center', background: 'rgba(0,0,0,0.6)', padding: 30, borderRadius: '50%', boxShadow: '0 0 20px rgba(0,229,255,0.2)', border: '1px solid rgba(0,229,255,0.3)' }}>
+              <div style={{ margin: 0, color: '#FFF', fontSize: 48, fontWeight: '900', textShadow: '0 0 20px #00E5FF' }}>{patientData?.recovery_insights?.recovery_rate || 92}%</div>
+              <div style={{ margin: '5px 0 0 0', color: '#E2E8F0', fontSize: 13, letterSpacing: 1, fontWeight: 'bold' }}>Recovery Index</div>
             </div>
 
-            {/* Corner Labels */}
-            <span style={{ position: 'absolute', top: 0, left: -20, color: '#94A3B8', fontSize: 12, fontWeight: 'bold' }}>Post-Op Vital Monitoring</span>
-            <span style={{ position: 'absolute', top: 0, right: -20, color: '#94A3B8', fontSize: 12, fontWeight: 'bold' }}>Cellular Status</span>
-            <span style={{ position: 'absolute', bottom: 0, left: -20, color: '#94A3B8', fontSize: 12, fontWeight: 'bold' }}>Neurological Feedback</span>
-            <span style={{ position: 'absolute', bottom: 0, right: -20, color: '#94A3B8', fontSize: 12, fontWeight: 'bold' }}>Healing Progress</span>
+            <div style={{ position: 'absolute', top: 0, left: -40, color: '#94A3B8', fontSize: 12, width: 100, textAlign: 'left', fontWeight: 'bold' }}>Post-Op Vital<br/>Monitoring</div>
+            <div style={{ position: 'absolute', top: 0, right: -40, color: '#94A3B8', fontSize: 12, width: 100, textAlign: 'right', fontWeight: 'bold' }}>Cellular<br/>Status</div>
+            <div style={{ position: 'absolute', bottom: 0, left: -40, color: '#94A3B8', fontSize: 12, width: 100, textAlign: 'left', fontWeight: 'bold' }}>Neurological<br/>Feedback</div>
+            <div style={{ position: 'absolute', bottom: 0, right: -40, color: '#94A3B8', fontSize: 12, width: 100, textAlign: 'right', fontWeight: 'bold' }}>Healing<br/>Progress</div>
           </div>
         </div>
 
@@ -209,5 +163,11 @@ export default function DoctorVaultScreen() {
 
       </div>
     </ScrollView>
-  );
-}
+  );"""
+
+content = content[:start_idx] + new_return + content[end_idx:]
+
+with open('src/app/explore.tsx', 'w', encoding='utf-8') as f:
+    f.write(content)
+
+print("explore.tsx rewritten perfectly as 2x2 grid without markdown.")

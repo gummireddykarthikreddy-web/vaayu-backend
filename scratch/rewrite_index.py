@@ -1,4 +1,6 @@
-import React from 'react';
+import os
+
+code = """import React from 'react';
 import { ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 
@@ -76,7 +78,7 @@ export default function IndexHub() {
         {/* ROW 1: Massive 3D Glass Slabs */}
         <div style={{ display: 'flex', flexDirection: 'row', gap: 30, height: 290 }}>
           
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/patient-login')}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/patient')}>
             <div className="slab-cyan" style={{ width: '100%', height: '100%', borderRadius: 24, padding: 35, display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0, color: '#FFF', fontSize: 34, fontWeight: '900', lineHeight: 1.2, textShadow: '0 0 15px #38BDF8', marginBottom: 15 }}>
@@ -88,7 +90,7 @@ export default function IndexHub() {
             </div>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/doctor-login')}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/explore')}>
             <div className="slab-plat" style={{ width: '100%', height: '100%', borderRadius: 24, padding: 35, display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ flex: 1 }}>
                 <h2 style={{ margin: 0, color: '#FFF', fontSize: 34, fontWeight: '900', lineHeight: 1.2, textShadow: '0 0 15px #F59E0B', marginBottom: 15 }}>
@@ -121,7 +123,7 @@ export default function IndexHub() {
             </div>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/labs')}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => router.push('/dashboard')}>
             <div className="mini-card" style={{ background: 'linear-gradient(180deg, rgba(16,185,129,0.15) 0%, rgba(15,23,42,0.9) 100%)', borderColor: '#10B981', boxShadow: '0 0 30px rgba(16,185,129,0.15)' }}>
               <div>
                 <h3 style={{ margin: 0, color: '#FFF', fontSize: 28, fontWeight: '900', lineHeight: 1.2, textShadow: '0 0 15px #10B981', marginBottom: 10 }}>Enter 5-Panel<br/>Lab Vitals</h3>
@@ -154,3 +156,7 @@ export default function IndexHub() {
     </ScrollView>
   );
 }
+"""
+with open('src/app/index.tsx', 'w', encoding='utf-8') as f:
+    f.write(code)
+print("index.tsx written")
