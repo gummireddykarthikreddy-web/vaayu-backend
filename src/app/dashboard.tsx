@@ -16,7 +16,7 @@ export default function Dashboard() {
   const [labData, setLabData] = useState<any>(null);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/labs/VAAYU-77572')
+    fetch('https://vaayu-backend-ulzh.onrender.com/api/labs/VAAYU-77572')
       .then(r => r.json())
       .then(data => setLabData(data))
       .catch(e => console.error(e));

@@ -19,7 +19,7 @@ export default function DoctorVaultScreen() {
   const [patientData, setPatientData] = useState<any>(null);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/patient/VAAYU-77572')
+    fetch('https://vaayu-backend-ulzh.onrender.com/api/patient/VAAYU-77572')
       .then(r => r.json())
       .then(data => setPatientData(data))
       .catch(e => console.error(e));
